@@ -55,7 +55,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="VehicleSpawner.cs" />
-    <Compile Include="ParkrAI.cs" />
+    <Compile Include="ParkAI.cs" />
     <Compile Include="DummyVehicleAI.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
