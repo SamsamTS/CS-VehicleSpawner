@@ -11,12 +11,12 @@ namespace VehicleSpawner
 
         public string Name
         {
-            get { return "CarSpawnerAI"; }
+            get { return "VehicleSpawner"; }
         }
 
         public string Description
         {
-            get { return "Custom AI that spawn cars."; }
+            get { return "Custom Building AI allowing to make parks that spawn vehicle."; }
         }
     }
 
