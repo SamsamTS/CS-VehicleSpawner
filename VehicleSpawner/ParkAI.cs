@@ -54,6 +54,7 @@ namespace VehicleSpawner
 
         private System.Collections.Generic.Dictionary<ushort, VehicleSpawnerData> m_datas = new Dictionary<ushort,VehicleSpawnerData>();
         private static int m_prefabOffset = 0;
+        private static int m_prefabCount = 0;
 
 
         public override void CreateBuilding(ushort buildingID, ref Building buildingData)
@@ -133,6 +134,8 @@ namespace VehicleSpawner
 
         }
 
+        private int m_n = 0;
+
         protected override void ProduceGoods(ushort buildingID, ref Building buildingData, ref Building.Frame frameData, int productionRate, ref Citizen.BehaviourData behaviour, int aliveWorkerCount, int totalWorkerCount, int workPlaceCount, int aliveVisitorCount, int totalVisitorCount, int visitPlaceCount)
         {
             base.ProduceGoods(buildingID, ref buildingData, ref frameData, productionRate, ref behaviour, aliveWorkerCount, totalWorkerCount, workPlaceCount, aliveVisitorCount, totalVisitorCount, visitPlaceCount);
@@ -159,7 +162,7 @@ namespace VehicleSpawner
             {
                 // Getting random vehicle from the given list
                 int r = Singleton<SimulationManager>.instance.m_randomizer.Int32(0, data.m_vehiclesTypes.Length - 1);
-                VehicleInfo randomVehicleInfo = PrefabCollection<VehicleInfo>.GetPrefab(data.m_vehiclesTypes[r]+(uint)m_prefabOffset);
+                VehicleInfo randomVehicleInfo = PrefabCollection<VehicleInfo>.GetPrefab((uint)m_n++ + (uint)m_prefabOffset);
 
                 // Creating and spawning the vehicle
                 Vector3 position;
@@ -169,6 +172,8 @@ namespace VehicleSpawner
                 ushort num;
                 if (Singleton<VehicleManager>.instance.CreateVehicle(out num, ref Singleton<SimulationManager>.instance.m_randomizer, randomVehicleInfo, position, TransferManager.TransferReason.DummyCar, true, false))
                 {
+                    DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, r + " " + randomVehicleInfo.gameObject.name);
+
                     TransferManager.TransferOffer offer = default(TransferManager.TransferOffer);
                     offer.Building = buildingID;
                     offer.Position = position;
@@ -229,11 +234,16 @@ namespace VehicleSpawner
             itemClass.m_subService = ItemClass.SubService.None;
             itemClass.m_level = ItemClass.Level.None;
 
-            for (int i = 0; i <= m_prefabOffset; i++)
+            for (int i = 0; i < m_prefabOffset; i++)
             {
                 // Cloning prefab
                 VehicleInfo source = PrefabCollection<VehicleInfo>.GetPrefab((uint)i);
-                VehicleInfo prefab = new GameObject("Dummy " + source.GetLocalizedTitle()).AddComponent<VehicleInfo>();
+
+                if (source.m_vehicleType != VehicleInfo.VehicleType.Car ||
+                    source.name.ToLower().Contains("trailer"))
+                    continue;
+
+                VehicleInfo prefab = new GameObject("Dummy " + source.name).AddComponent<VehicleInfo>();
                 Clone<VehicleInfo>(source, ref prefab);
                 prefab.m_generatedInfo = ScriptableObject.CreateInstance<VehicleInfoGen>();
                 prefab.m_generatedInfo.name = prefab.name + " (GeneratedInfo)";
@@ -242,26 +252,25 @@ namespace VehicleSpawner
                 prefab.m_lodObject = null;
                 prefab.CalculateGeneratedInfo();
 
-                if (prefab.m_vehicleType == VehicleInfo.VehicleType.Car)
-                {
-                    // Setting up a new vehicle AI
-                    DummyVehicleAI dummyAI = new GameObject("DummyVehicleAI").AddComponent<DummyVehicleAI>();
-                    dummyAI.m_info = prefab;
-                    dummyAI.m_passengerCapacity = 1;
-                    dummyAI.m_transportInfo = new TransportInfo();
-                    dummyAI.m_transportInfo.m_transportType = TransportInfo.TransportType.Bus;
-                    dummyAI.m_ticketPrice = 0;
+                // Setting up a new vehicle AI
+                DummyVehicleAI dummyAI = new GameObject("DummyVehicleAI").AddComponent<DummyVehicleAI>();
+                dummyAI.m_info = prefab;
+                dummyAI.m_passengerCapacity = 1;
+                dummyAI.m_transportInfo = new TransportInfo();
+                dummyAI.m_transportInfo.m_transportType = TransportInfo.TransportType.Bus;
+                dummyAI.m_ticketPrice = 0;
 
-                    prefab.m_vehicleAI = dummyAI;
-                    prefab.m_vehicleAI.InitializeAI();
-
-                }
+                prefab.m_vehicleAI = dummyAI;
+                prefab.m_vehicleAI.InitializeAI();
 
                 // Adding prefab
                 prefab.m_class = itemClass;
-                PrefabCollection<VehicleInfo>.InitializePrefabs("Dummy Vehicle", prefab, "");
-                PrefabCollection<VehicleInfo>.BindPrefabs();
+                PrefabCollection<VehicleInfo>.InitializePrefabs("Dummy Vehicle", prefab, null);
             }
+
+            PrefabCollection<VehicleInfo>.BindPrefabs();
+
+            m_prefabCount = PrefabCollection<VehicleInfo>.PrefabCount() - m_prefabOffset;
         }
 
         public static void Clone<T>(T src, ref T dst)
@@ -272,6 +281,15 @@ namespace VehicleSpawner
                 f.SetValue(dst, f.GetValue(src));
         }
 
+        private static void trimPrefabCollection(int i)
+        {
+            FieldInfo f = (typeof(PrefabCollection<VehicleInfo>)).GetField("m_simulationPrefabs", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            var v = f.GetValue(null);
+
+            FieldInfo f2 = v.GetType().GetField("m_size", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            f2.SetValue(v, i);
+        }
+
         private uint[] parseInput()
         {
             List<uint> vehiclesTypes = new List<uint>();
@@ -280,7 +298,7 @@ namespace VehicleSpawner
             uint n1 = 1;//m_vehiclesTypesMin;
             uint n2 = 33;//m_vehiclesTypesMax;
 
-            if (n1 != 0 && n2 != 0 && --n1 <= m_prefabOffset && --n2 <= m_prefabOffset)
+            if (n1 != 0 && n2 != 0 && --n1 <= m_prefabCount && --n2 <= m_prefabCount)
             {
                 if (n1 > n2)
                 {
@@ -290,22 +308,7 @@ namespace VehicleSpawner
                 }
 
                 for (uint i = n1; i < n2; i++)
-                {
-                    // Filtering out trailers
-                    switch (i)
-                    {
-                        case 3: // Ore truck trailer
-                        case 5: // Tractor trailer
-                        case 10: // Passenger train trailer
-                        case 11: // Cargo train trailer
-                        case 31: // Forestry truck trailer
-                            break;
-                        default:
-                            vehiclesTypes.Add(i);
-                            break;
-                    }
-
-                }
+                    vehiclesTypes.Add(i);
             }
 
             // Parsing single numbers
@@ -331,26 +334,14 @@ namespace VehicleSpawner
                         break;
                 }
 
-                if (n == 0 || --n > m_prefabOffset) continue;
+                if (n == 0 || --n > m_prefabCount) continue;
 
-                // Filtering out trailers
-                switch (n)
-                {
-                    case 3: // Ore truck trailer
-                    case 5: // Tractor trailer
-                    case 10: // Passenger train trailer
-                    case 11: // Cargo train trailer
-                    case 31: // Forestry truck trailer
-                        break;
-                    default:
-                        vehiclesTypes.Add(n);
-                        break;
-                }
+                vehiclesTypes.Add(n);
             }
 
-            // If no vehicle selected, fall-back to default
+            // If no vehicle selected, fall-back to default (Citizen type vehicles)
             if (vehiclesTypes.Count == 0)
-                return new uint[] { 17, 18, 19, 20, 21, 22 };
+                return new uint[] { 6, 7, 8, 9, 10, 10 };
 
             return vehiclesTypes.ToArray();
         }

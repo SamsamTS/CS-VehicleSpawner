@@ -4,7 +4,6 @@ namespace VehicleSpawner
 {
     public class VehicleSpawner : IUserMod
     {
-
         public string Name
         {
             get { return "VehicleSpawner"; }
@@ -15,6 +14,4 @@ namespace VehicleSpawner
             get { return "Custom Building AI allowing to make buildings that spawn vehicle."; }
         }
     }
-
-
 }

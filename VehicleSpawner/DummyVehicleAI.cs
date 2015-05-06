@@ -11,10 +11,6 @@ namespace VehicleSpawner
     /// </summary>
     public class DummyVehicleAI : BusAI
     {
-        public override void CreateVehicle(ushort vehicleID, ref Vehicle data)
-        {
-            base.CreateVehicle(vehicleID, ref data);
-        }
 
         // Restoring GetColor from VehicleAI we don't want all blue vehicles
         public override Color GetColor(ushort vehicleID, ref Vehicle data, InfoManager.InfoMode infoMode)
