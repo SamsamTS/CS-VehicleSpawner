@@ -55,6 +55,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="VehiclePrefabs.cs" />
     <Compile Include="VehicleSpawner.cs" />
     <Compile Include="ParkAI.cs" />
     <Compile Include="DummyVehicleAI.cs" />
